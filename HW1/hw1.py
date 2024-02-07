@@ -9,6 +9,8 @@ import sys
 import matplotlib.pyplot as plt
 from elasticsearch import Elasticsearch
 import time
+from elasticsearch import helpers
+
 
 
 def is_integer(s):
@@ -139,133 +141,51 @@ def part_one():
 
 
 def part_two():
-# Get all the content from json file to a txt file
-    # path = os.getcwd() + "/yelp"
-    # yelp_store_list = os.listdir(path)
-    # for yelp_store in yelp_store_list:
-    #     print("Current file: ", yelp_store)
-    #     store_id = yelp_store.strip(".json")
-    #     store_path = path + "/" +yelp_store
-    #     with open (store_path, 'r') as file:
-    #         data = json.load(file)
-    #     reviews = data["Reviews"]
-    #     for review in reviews:
-    #         new_file = os.getcwd() + "/yelp_content/" + store_id + ".txt"
-    #         with open (new_file, "a") as file:
-    #             file.write(review["Content"])
-
-    
-    
     #query 
     queries = ["general chicken", "fry chicken", "bbq sandwich", "mash potato", "grill shrimp salad",
-            "lamb shank", "pepperoni pizza", "friend staff", "grill cheese"
-            ]
+            "lamb shank", "pepperoni pizza", "friend staff", "grill cheese"]
     #  ES search    
     # indexing documents
-    es = Elasticsearch('https://localhost:9200', basic_auth=("elastic", "B_mJvwy5xsSJdNwjcAx9"), verify_certs=False)
-    path = os.getcwd() + "/yelp_content"
+    es = Elasticsearch('https://localhost:9200', basic_auth=("elastic", "xq40waSiYVhL1nf22tgO"), verify_certs=False)
+    path = os.getcwd() + "/yelp"
     yelp_store_list = os.listdir(path)
-    for index in range(len(yelp_store_list)):
-        store_id = yelp_store_list[index].strip(".txt")
-        file_path = os.path.join(path, yelp_store_list[index])
-        with open(file_path, 'r') as file:
-            document_content = file.read()
-        index_name = f"yelp_{store_id.lower()}"  
-        doc = {"content": document_content}
-        resp = es.index(index=index_name, id=index, document=doc)
-        # print(resp)
-        
-    print("Done indexing and starting searching")
-    start_time = time.time()
-    #Search each query by making a searfch query to ES
-    for query in queries:
-        print(f"Searching for: {query}")
-        index_pattern = "yelp_*"
-        search_query = {
-            "query": {
-                "match": {
-                    "content": query
-                }
-            }
-        }
-        #result obtain
-        result = es.search(index=index_pattern, body=search_query)
-        #Decode the result
-        for hit in result['hits']['hits']:
-            #write the document retrived in a file
-            with open("ESSearch_output.txt", "a") as file:
-                output = f"Searching for {query} Score: {hit['_score']}, Index: {hit['_index']}, Document ID: {hit['_id']}\n"
-                file.write(output)
-        #line break
-        with open("ESSearch_output.txt", "a") as file:
-            file.write("=================================\n")
-            
-            
-    
-    #record end time
-    # end_time = time.time()
-    # with open("ESSearch_output.txt", "a") as file:
-    #     file.write(f"Total time used in ES is {end_time - start_time}")
-    
-    
-    #Log Log Curve for ES search
-    # TFF = {}
-    # DF = {}
-    # with open("ESTFFandDF.txt", "r") as file:
-    #     for line in file:
-    #         tokens = line.split(", ")
-    #         # Extract values from tokens
-    #         term = tokens[1].split(": ")[1]
-    #         tf = int(tokens[2].split(": ")[1])
-    #         df = int(tokens[3].split(": ")[1])
-    #         # print(f"Term:{term} TF: {tf}, DF{df}")
-    #         TFF[term] = tf
-    #         DF[term] = df
-
-    # with open("DF.txt", 'w') as file:
-    #     sys.stdout = file
-    #     print(DF)
-    
-    # # Sort TFF
-    # sorted_DF = dict(
-    #     sorted(DF.items(), key=lambda item: item[1], reverse=True))
-    # word = list(sorted_DF.keys())
-    # count = list(sorted_DF.values())
-
-    # plt.figure(figsize=(8, 6))
-    # plt.loglog(word, count, marker='o', linestyle='-', color='b')
-
-    # # Set the x-axis to log scale
-    # plt.xscale('log')
-
-    # plt.xlabel('X-axis (word)')
-    # plt.ylabel('Y-axis (count)')
-    # plt.title('ES search DF graph')
-    # plt.show()
-    
-    
-    # Building Bag of word
-    #Tokenize and count the DF for each word
-    Bag_of_word = {}
-    path = os.getcwd() + "/yelp_content"
-    yelp_store_list = os.listdir(path)
-    stemmer = PorterStemmer()
+    index_name = "text_index"
+    documents = []
     for yelp_store in yelp_store_list:
-        store_id = yelp_store.strip(".txt")
-        path = os.getcwd() + "/yelp_content/" + yelp_store
-        with open(path, 'r') as file:
-            contents = file.read()
-        tokens = word_tokenize(contents)
-        for token in tokens:
-            # strip all the non-English letters and digits
-            token = remove_non_alphanumeric(token)
-            if len(token) == 0:
-                continue
-            elif is_integer(token):
-                token = "NUM"
-            else:
-                token = stemmer.stem(token)
-                token = token.lower()
+        store_path = path + "/" + yelp_store
+        with open(store_path, 'r') as file:
+            data = json.load(file)
+        reviews = data["Reviews"]
+        # print("Current review: ", reviews)
+        for review in reviews:
+            doc = review['Content']
+            doc_ID = review['ReviewID']
+            doc_e = {
+                '_index' : index_name,
+                '_id' : doc_ID,
+                'review' : doc
+            }
+            documents.append(doc_e)
+    helpers.bulk(es,documents)
+
+    for query in queries:
+        # Construct the query using the correct syntax
+        resp = es.search(index = index_name, body={"query": {"match": {"review": query}}})
+        # Write the response to a file
+        with open("output.txt", "a") as file:
+            sys.stdout = file 
+            print(resp)
+            print("================================\n")
+            # file.write("Got %d Hits:\n" % resp['hits']['total']['value'])
+            # for hit in resp['hits']['hits']:
+            #     file.write("%(timestamp)s %(author)s: %(text)s\n" % hit["_source"])
+            # file.write("================================\n")
+
+
+    #Do inverted index for BoW
+            
+    
+
 
         
 
