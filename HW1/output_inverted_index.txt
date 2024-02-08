@@ -1,0 +1,10 @@
+Total time is 0.002999544143676758
+Query for general chicken and found 507 documents
+Query for fry chicken and found 4767 documents
+Query for bbq sandwich and found 442 documents
+Query for mash potato and found 1617 documents
+Query for grill shrimp salad and found 499 documents
+Query for lamb shank and found 54 documents
+Query for pepperoni pizza and found 669 documents
+Query for friend staff and found 1572 documents
+Query for grill cheese and found 1462 documents
