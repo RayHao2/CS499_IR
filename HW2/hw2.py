@@ -4,6 +4,7 @@ from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 import re
 import sys
+import pickle
 
 
 
@@ -76,10 +77,14 @@ def part_one():
     #calulate DFF
     for key in DF_count:
         DF_count[key] = len(DF_count[key])
-    return unigram_percentage, DF_count
+    return unigram_percentage, DF_count, total_tokens
 
-def bigram_frquency(given_word):
+
+
+#return the number of bigram where it fits the format of (given_word, query_word) assuming the word already done the normalization process
+def bigram_frquency(query_word,given_word):
     freq = 0
+    
     return freq
 
 
@@ -87,20 +92,26 @@ def bigram_frquency(given_word):
 #unigram_percenrage: a hash table that contain all p(w)
 #Given_word, w_i-1
 #DF_count, document freq
-def LTS(unigram_percentage, given_word, DF_count):
+def LTS(unigram_percentage, query_word, given_word, tokens_count):
 
     #c(w_i-1)
     given_word_freq = unigram_percentage[given_word]
     #c(w_i-1*w_i)
-    bigram_freq = bigram_frquency()
-
-    pass
+    bigram_freq = bigram_frquency(query_word, given_word)
+    #(1-lamda)* c(w_i-1*w_i)/c(w_i-1)
+    mle = 0.1 * (bigram_freq/given_word_freq)
+    parameter = 0.9*(given_word_freq/tokens_count)
+    return mle + parameter
 
 #bigram(aboslute dicounts smoothing)
-def ADS(unigram_percentage, given_word, DF_count):
+def ADS(unigram_percentage, given_word):
     pass
 def main():
-    unigram_percentage, DF_count = part_one()
+    with open("total_count.txt", "r") as f:
+        tokens_count = int(f.read())
+    with open("unigram_percentage.pkl", "rb") as f:
+        unigram_percentage = pickle.load(f)
+    print(unigram_percentage)
     
     
     
