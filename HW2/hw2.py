@@ -27,11 +27,11 @@ def remove_non_alphanumeric(input_string):
 
 
 def part_one():
-    
     current_dir = os.getcwd()
     path = os.path.join(os.path.dirname(current_dir), "yelp")
     tokens_count = {}
     unigram_percentage = {}
+    DF_count = {}
     stemmer = PorterStemmer()
     total_tokens = 0
     yelp_store_list = os.listdir(path)
@@ -61,18 +61,46 @@ def part_one():
                     token = token.lower()
                 total_tokens += 1
                 tokens_count[token] = 1 + tokens_count.get(token, 0)
+                if token in DF_count and DF_count[token] is not None:
+                    DF_count[token].add(doc_ID)
+                else:
+                    DF_count[token] = set()
+                    DF_count[token].add(doc_ID)
+
     #calulate unigram percentage
     for token in tokens_count:
         print(token)
         count = tokens_count[token]
         unigram_percentage[token] = count / total_tokens
 
-    
-    #bigram(Linear iterpolation smoothing)
-    
-    #bigram(aboslute dicounts smoothing)
+    #calulate DFF
+    for key in DF_count:
+        DF_count[key] = len(DF_count[key])
+    return unigram_percentage, DF_count
+
+def bigram_frquency(given_word):
+    freq = 0
+    return freq
+
+
+#bigram(Linear iterpolation smoothing)
+#unigram_percenrage: a hash table that contain all p(w)
+#Given_word, w_i-1
+#DF_count, document freq
+def LTS(unigram_percentage, given_word, DF_count):
+
+    #c(w_i-1)
+    given_word_freq = unigram_percentage[given_word]
+    #c(w_i-1*w_i)
+    bigram_freq = bigram_frquency()
+
+    pass
+
+#bigram(aboslute dicounts smoothing)
+def ADS(unigram_percentage, given_word, DF_count):
+    pass
 def main():
-    part_one()
+    unigram_percentage, DF_count = part_one()
     
     
     
