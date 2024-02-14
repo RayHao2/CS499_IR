@@ -77,7 +77,7 @@ def part_one():
     #calulate DFF
     for key in DF_count:
         DF_count[key] = len(DF_count[key])
-    return unigram_percentage, DF_count, total_tokens
+    return tokens_count
 
 
 
@@ -104,14 +104,26 @@ def LTS(unigram_percentage, query_word, given_word, tokens_count):
     return mle + parameter
 
 #bigram(aboslute dicounts smoothing)
-def ADS(unigram_percentage, given_word):
+def ADS(unigram_percentage, query_word, given_word, tokens_count):
     pass
 def main():
+    with open("tokens_count.pkl", "rb") as f:
+        tokens_count = pickle.load(f)
     with open("total_count.txt", "r") as f:
-        tokens_count = int(f.read())
+        total_count = int(f.read())
     with open("unigram_percentage.pkl", "rb") as f:
         unigram_percentage = pickle.load(f)
-    print(unigram_percentage)
+    #find the top 10 word corresponding to LTS
+    given_word = "good"
+    top_ten_LTS_value = []
+    top_ten_LTS_token = []
+    
+    for token in tokens_count:
+        LTS_value = LTS(unigram_percentage, token, given_word, tokens_count)
+        if len(top_ten_LTS_value) < 10:
+            top_ten_LTS_token.append(token)
+        else:
+            
     
     
     
