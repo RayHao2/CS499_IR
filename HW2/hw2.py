@@ -172,8 +172,9 @@ def bigram_frquency():
 #lamda = 0.9
 #DF_count, document freq
 def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_count):
-    if given_word in tokens_count and query_word in bigram_freq_dict and query_word in unigram_percentage:
-        bigram = (given_word,query_word)
+    bigram = (given_word,query_word)
+    if given_word in tokens_count and bigram in bigram_freq_dict and query_word in unigram_percentage:
+        # print(f"{bigram}'s freq is {bigram_freq_dict[bigram]}")
         #c(w_i-1)
         given_word_freq = tokens_count[given_word]
         #c(w_i-1,w_i)
@@ -188,7 +189,7 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
 def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     top_ten_LTS_tokens = []  
     for token in tokens_count:
-        LTS_value = LTS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
+        LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
         print(f"Token: {token},LTS:{LTS_value}")
         # If the length of top_ten_LTS_tokens is less than 10, simply add the token
         if len(top_ten_LTS_tokens) < 10:
@@ -201,9 +202,7 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 
     # Once the loop is done, the top_ten_LTS_tokens list will contain the top 10 tokens with the highest LTS values
     top_ten_LTS_tokens = [(value, token) for value, token in sorted(top_ten_LTS_tokens, reverse=True)]
-    with open("output.txt", "w") as f:
-        sys.stdout = f
-        print(top_ten_LTS_tokens)
+
 
 #bigram(aboslute dicounts smoothing)
 #unigram_percenrage: a hash table that contain all p(w)
@@ -211,16 +210,19 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 #DF_count, document freq
 #unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
 def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_count):
-    #max(c(w_i,w_i-1),0)
-    bigram_freq = max(bigram_freq_dict[given_word] - 0.1,0)
-    #unique word count:
-    unique_count = unique_given_word_count(query_word) * 0.1
-    #unigram prob of given_word
-    given_word_freq = unigram_percentage[given_word]
-    #length of given word
-    given_word_count = tokens_count[given_word]
-
-    return (bigram_freq + (unique_count * given_word_freq)) / given_word_count
+    bigram = (given_word,query_word)
+    if given_word in tokens_count and bigram in bigram_freq_dict and query_word in unigram_percentage:
+        #max(c(w_i,w_i-1),0)
+        bigram_freq = max(bigram_freq_dict[bigram] - 0.1,0)
+        #unique word count:
+        unique_count = unique_given_word_count(query_word) * 0.1
+        #unigram prob of given_word
+        given_word_freq = unigram_percentage[given_word]
+        #length of given word
+        given_word_count = tokens_count[given_word]
+        return (bigram_freq + (unique_count * given_word_freq)) / given_word_count
+    else:
+        return 0
 
 def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     top_ten_ADS_tokens = []  
@@ -255,13 +257,14 @@ def main():
         print(bigram_freq_dict, file=f)
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
-    query_word = "we"
-    bigram = (given_word, query_word)
-    print(bigram_freq_dict[bigram])
     #Find the top 10 most frequent word given the word "good using LTS" 
     # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     #Find the top 10 most frequent word given the word "good using ADS"
-    # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    with open("output.txt", "w") as f:
+        # print(f"Top 10 LTS: {top_ten_LTS}", file=f)
+        print(f"Top 10 ADS: {top_ten_ADS}", file=f)
+
             
     
     
