@@ -154,7 +154,8 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
 #unigram_percenrage: a hash table that contain all p(w)
 #Given_word, w_i-1
 #DF_count, document freq
-def ADS(unigram_percentage, query_word, given_word, tokens_count):
+#unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
+def ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, query_word, given_word, tokens_count):
     pass
 def main():
     with open("tokens_count.pkl", "rb") as f:
