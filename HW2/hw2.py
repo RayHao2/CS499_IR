@@ -60,6 +60,7 @@ def part_one():
                     continue
                 elif is_integer(token):
                     token = "NUM"
+                    print("NUM appear")
                 else:
                     token = stemmer.stem(token)
                     token = token.lower()
@@ -80,7 +81,18 @@ def part_one():
     #calulate DFF
     for key in DF_count:
         DF_count[key] = len(DF_count[key])
-    return tokens_count
+    
+    with open("output.txt", "w") as f:
+        sys.stdout = f
+        print(tokens_count)
+        
+    with open("tokens_count.pkl", "wb") as f:
+        pickle.dump(tokens_count,f)
+    with open("unigram_percentage.pkl", "wb") as f:
+        pickle.dump(unigram_percentage,f)
+    with open("total_tokens.txt", "w") as f:
+        f.write(str(total_tokens))
+
 
 
 
@@ -90,6 +102,7 @@ def bigram_frquency(given_word):
     current_dir = os.getcwd()
     path = os.path.join(os.path.dirname(current_dir), "yelp")
     yelp_store_list = os.listdir(path)
+    stemmer = PorterStemmer()
     for yelp_store in yelp_store_list:
         store_path = path + "/" + yelp_store
         with open(store_path, 'r') as file:
@@ -99,7 +112,20 @@ def bigram_frquency(given_word):
         for review in reviews:
             doc = review['Content']
             tokens = word_tokenize(doc)
-            bigram_list = list(bigrams(tokens))
+            normaled_token = []
+            #normal token
+            for token in tokens:
+                token = remove_non_alphanumeric(token)
+                if len(token) == 0:
+                    continue
+                elif is_integer(token):
+                    token = "NUM"
+                else:
+                    token = stemmer.stem(token)
+                    token = token.lower()
+                normaled_token.append(token)
+            #find bigram in the normaled token
+            bigram_list = list(bigrams(normaled_token))
             for bigram in bigram_list:
                 if given_word == bigram[0]:
                     bigram_freq_dict[bigram[1]] = 1 + bigram_freq_dict.get(bigram[1],0)
@@ -132,37 +158,36 @@ def ADS(unigram_percentage, query_word, given_word, tokens_count):
     pass
 def main():
     with open("tokens_count.pkl", "rb") as f:
-        bigram_freq_dict = pickle.load(f)
-    with open("tokens_count.pkl", "rb") as f:
         tokens_count = pickle.load(f)
     with open("total_count.txt", "r") as f:
         total_count = int(f.read())
     with open("unigram_percentage.pkl", "rb") as f:
         unigram_percentage = pickle.load(f)
+
+
+    # #find the top 10 word corresponding to LTS
+    given_word = "good"
+    bigram_freq_dict = bigram_frquency(given_word)
+
+    #Finding the top 10 most frequent word given the word "good"
+    top_ten_LTS_tokens = []  
+    for token in tokens_count:
+        LTS_value = LTS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
+        print(f"Token: {token},LTS:{LTS_value}")
+        # If the length of top_ten_LTS_tokens is less than 10, simply add the token
+        if len(top_ten_LTS_tokens) < 10:
+            heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
+        else:
+            # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
+            if LTS_value > top_ten_LTS_tokens[0][0]:
+                heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
+                heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
+
+    # Once the loop is done, the top_ten_LTS_tokens list will contain the top 10 tokens with the highest LTS values
+    top_ten_LTS_tokens = [(value, token) for value, token in sorted(top_ten_LTS_tokens, reverse=True)]
     with open("output.txt", "w") as f:
         sys.stdout = f
-        print(tokens_count)
-    # #find the top 10 word corresponding to LTS
-    # given_word = "good"
-    # #Finding the top 10 most frequent word given the word "good"
-    # top_ten_LTS_tokens = []  
-    # for token in tokens_count:
-    #     LTS_value = LTS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
-    #     print(f"Token: {token},LTS:{LTS_value}")
-    #     # If the length of top_ten_LTS_tokens is less than 10, simply add the token
-    #     if len(top_ten_LTS_tokens) < 10:
-    #         heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
-    #     else:
-    #         # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
-    #         if LTS_value > top_ten_LTS_tokens[0][0]:
-    #             heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
-    #             heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
-
-    # # Once the loop is done, the top_ten_LTS_tokens list will contain the top 10 tokens with the highest LTS values
-    # top_ten_LTS_tokens = [(value, token) for value, token in sorted(top_ten_LTS_tokens, reverse=True)]
-    # with open("output.txt", "w") as f:
-    #     sys.stdout = f
-    #     print(top_ten_LTS_tokens)
+        print(top_ten_LTS_tokens)
   
             
     
