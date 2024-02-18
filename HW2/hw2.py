@@ -63,7 +63,6 @@ def part_one():
                 else:
                     token = stemmer.stem(token)
                     token = token.lower()
-                total_tokens += 1
                 tokens_count[token] = 1 + tokens_count.get(token, 0)
                 if token in DF_count and DF_count[token] is not None:
                     DF_count[token].add(doc_ID)
@@ -71,6 +70,9 @@ def part_one():
                     DF_count[token] = set()
                     DF_count[token].add(doc_ID)
 
+    #find total amount of token in the dic
+    for token in tokens_count:
+        total_tokens += tokens_count[token]
     #calulate unigram percentage
     for token in tokens_count:
         count = tokens_count[token]
@@ -80,10 +82,7 @@ def part_one():
     for key in DF_count:
         DF_count[key] = len(DF_count[key])
     
-    with open("output.txt", "w") as f:
-        sys.stdout = f
-        print(tokens_count)
-        
+    #store to local file
     with open("tokens_count.pkl", "wb") as f:
         pickle.dump(tokens_count,f)
     with open("unigram_percentage.pkl", "wb") as f:
@@ -92,39 +91,12 @@ def part_one():
         f.write(str(total_tokens))
 
 
-def unique_given_word_count(query_word):
-    unique_word = set()
-    current_dir = os.getcwd()
-    path = os.path.join(os.path.dirname(current_dir), "yelp")
-    yelp_store_list = os.listdir(path)
-    stemmer = PorterStemmer()
-    for yelp_store in yelp_store_list:
-        store_path = path + "/" + yelp_store
-        with open(store_path, 'r') as file:
-            data = json.load(file)
-        reviews = data["Reviews"]
-        #Loop through each review in the yelp _ file
-        for review in reviews:
-            doc = review['Content']
-            tokens = word_tokenize(doc)
-            normaled_token = []
-            #normal token
-            for token in tokens:
-                token = remove_non_alphanumeric(token)
-                if len(token) == 0:
-                    continue
-                elif is_integer(token):
-                    token = "NUM"
-                else:
-                    token = stemmer.stem(token)
-                    token = token.lower()
-                normaled_token.append(token)
-            #find bigram in the normaled token
-            bigram_list = list(bigrams(normaled_token))
-            for bigram in bigram_list:
-                if query_word == bigram[1]:
-                    unique_word.add(bigram[0])
-    return len(unique_word)
+def unique_given_word_count(query_word, bigram_frquency_dic):
+    output = 0
+    for bigram in bigram_frquency_dic:
+        if bigram[1] == query_word:
+            output += bigram_frquency_dic[bigram]
+    return output
 
 #return the number of bigram where it fits the format of (given_word, query_word) assuming the word already done the normalization process
 def bigram_frquency():
@@ -213,7 +185,7 @@ def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_cou
         #max(c(w_i,w_i-1),0)
         bigram_freq = max(bigram_freq_dict[bigram] - 0.1,0)
         #unique word count:
-        unique_count = unique_given_word_count(query_word) * 0.1
+        unique_count = unique_given_word_count(query_word, bigram_freq_dict) * 0.1
         #unigram prob of given_word
         given_word_freq = unigram_percentage[given_word]
         #length of given word
@@ -239,11 +211,10 @@ def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     # Once the loop is done, the top_ten_ADS_tokens list will contain the top 10 tokens with the highest LTS values
     top_ten_ADS_tokens = [(value, token) for value, token in sorted(top_ten_ADS_tokens, reverse=True)]
     with open("output.txt", "w") as f:
-        sys.stdout = f
-        print(top_ten_ADS_tokens)
+        print(top_ten_ADS_tokens, file=f)
 
 def main():
-    # part_one()
+
     with open("tokens_count.pkl", "rb") as f:
         tokens_count = pickle.load(f)
     with open("total_count.txt", "r") as f:
@@ -252,29 +223,16 @@ def main():
         unigram_percentage = pickle.load(f)
     with open("bigram_freq_dict.pkl", "rb") as f:
         bigram_freq_dict = pickle.load(f)
-    # with open("output.txt", "w") as f:
-    #     print(bigram_freq_dict, file=f)
-    
-    # sum = 0
-    # for key in unigram_percentage:
-    #     sum = sum + unigram_percentage[key]
-    # print(sum)
-    sum = 0
-    for query_word in tokens_count:
-        for given_word in tokens_count:
-            if query_word != given_word:
-                sum += LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_count)
-                print(sum)
-    print(sum)
+    with open("output.txt", "w") as f:
+        print(bigram_freq_dict, file=f)
+
+
     #Find all bigram that came with good at first(W_i-1)
-    # given_word = "good"
-    # #Find the top 10 most frequent word given the word "good using LTS" 
-    # # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
-    # #Find the top 10 most frequent word given the word "good using ADS"
-    # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
-    # with open("output.txt", "w") as f:
-    #     # print(f"Top 10 LTS: {top_ten_LTS}", file=f)
-    #     print(f"Top 10 ADS: {top_ten_ADS}", file=f)
+    given_word = "good"
+    #Find the top 10 most frequent word given the word "good using LTS" 
+    # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    #Find the top 10 most frequent word given the word "good using ADS"
+    top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
 
             
     
