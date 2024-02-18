@@ -60,7 +60,6 @@ def part_one():
                     continue
                 elif is_integer(token):
                     token = "NUM"
-                    print("NUM appear")
                 else:
                     token = stemmer.stem(token)
                     token = token.lower()
@@ -74,7 +73,6 @@ def part_one():
 
     #calulate unigram percentage
     for token in tokens_count:
-        print(token)
         count = tokens_count[token]
         unigram_percentage[token] = count / total_tokens
 
@@ -245,6 +243,7 @@ def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
         print(top_ten_ADS_tokens)
 
 def main():
+    # part_one()
     with open("tokens_count.pkl", "rb") as f:
         tokens_count = pickle.load(f)
     with open("total_count.txt", "r") as f:
@@ -253,17 +252,29 @@ def main():
         unigram_percentage = pickle.load(f)
     with open("bigram_freq_dict.pkl", "rb") as f:
         bigram_freq_dict = pickle.load(f)
-    with open("output.txt", "w") as f:
-        print(bigram_freq_dict, file=f)
+    # with open("output.txt", "w") as f:
+    #     print(bigram_freq_dict, file=f)
+    
+    # sum = 0
+    # for key in unigram_percentage:
+    #     sum = sum + unigram_percentage[key]
+    # print(sum)
+    sum = 0
+    for query_word in tokens_count:
+        for given_word in tokens_count:
+            if query_word != given_word:
+                sum += LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_count)
+                print(sum)
+    print(sum)
     #Find all bigram that came with good at first(W_i-1)
-    given_word = "good"
-    #Find the top 10 most frequent word given the word "good using LTS" 
-    # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
-    #Find the top 10 most frequent word given the word "good using ADS"
-    top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
-    with open("output.txt", "w") as f:
-        # print(f"Top 10 LTS: {top_ten_LTS}", file=f)
-        print(f"Top 10 ADS: {top_ten_ADS}", file=f)
+    # given_word = "good"
+    # #Find the top 10 most frequent word given the word "good using LTS" 
+    # # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    # #Find the top 10 most frequent word given the word "good using ADS"
+    # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    # with open("output.txt", "w") as f:
+    #     # print(f"Top 10 LTS: {top_ten_LTS}", file=f)
+    #     print(f"Top 10 ADS: {top_ten_ADS}", file=f)
 
             
     
