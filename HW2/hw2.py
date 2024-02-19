@@ -8,6 +8,7 @@ import pickle
 import heapq
 from nltk.util import bigrams
 import time
+import random
 
 
 
@@ -17,11 +18,6 @@ def is_integer(s):
         return True
     except ValueError:
         return False
-    
-    
-def is_fraction(s):
-    fraction_pattern = re.compile(r'^\d+/\d+$')
-    return bool(fraction_pattern.match(s))
 
 
 def remove_non_alphanumeric(input_string):
@@ -30,16 +26,15 @@ def remove_non_alphanumeric(input_string):
     return result
 
 
-def part_one():
+def process_documents():
     current_dir = os.getcwd()
     path = os.path.join(os.path.dirname(current_dir), "yelp")
     tokens_count = {}
     unigram_percentage = {}
-    DF_count = {}
     stemmer = PorterStemmer()
     total_tokens = 0
     yelp_store_list = os.listdir(path)
-    
+    bigram_freq_dict = {}
     #unigram
     
     #Prepare documents
@@ -51,8 +46,8 @@ def part_one():
         #Loop through each review in the yelp _ file
         for review in reviews:
             doc = review['Content']
-            doc_ID = review['ReviewID']
             tokens = word_tokenize(doc) #token the review content
+            normaled_token = []
             #Loop through each token and normal it
             for token in tokens:
                 token = remove_non_alphanumeric(token)
@@ -64,11 +59,11 @@ def part_one():
                     token = stemmer.stem(token)
                     token = token.lower()
                 tokens_count[token] = 1 + tokens_count.get(token, 0)
-                if token in DF_count and DF_count[token] is not None:
-                    DF_count[token].add(doc_ID)
-                else:
-                    DF_count[token] = set()
-                    DF_count[token].add(doc_ID)
+                normaled_token.append(token)
+            bigram_list = list(bigrams(normaled_token))
+            for bigram in bigram_list:
+                bigram_freq_dict[bigram] = 1 + bigram_freq_dict.get(bigram,0)
+
 
     #find total amount of token in the dic
     for token in tokens_count:
@@ -78,9 +73,6 @@ def part_one():
         count = tokens_count[token]
         unigram_percentage[token] = count / total_tokens
 
-    #calulate DFF
-    for key in DF_count:
-        DF_count[key] = len(DF_count[key])
     
     #store to local file
     with open("tokens_count.pkl", "wb") as f:
@@ -89,6 +81,8 @@ def part_one():
         pickle.dump(unigram_percentage,f)
     with open("total_tokens.txt", "w") as f:
         f.write(str(total_tokens))
+    with open('bigram_freq_dict.pkl', 'wb') as f:
+        pickle.dump(bigram_freq_dict, f)
 
 
 def unique_given_word_count(query_word, bigram_frquency_dic):
@@ -98,41 +92,7 @@ def unique_given_word_count(query_word, bigram_frquency_dic):
             output += bigram_frquency_dic[bigram]
     return output
 
-#return the number of bigram where it fits the format of (given_word, query_word) assuming the word already done the normalization process
-def bigram_frquency():
-    bigram_freq_dict = {}
-    current_dir = os.getcwd()
-    path = os.path.join(os.path.dirname(current_dir), "yelp")
-    yelp_store_list = os.listdir(path)
-    stemmer = PorterStemmer()
-    for yelp_store in yelp_store_list:
-        store_path = path + "/" + yelp_store
-        with open(store_path, 'r') as file:
-            data = json.load(file)
-        reviews = data["Reviews"]
-        #Loop through each review in the yelp _ file
-        for review in reviews:
-            doc = review['Content']
-            tokens = word_tokenize(doc)
-            normaled_token = []
-            #normal token
-            for token in tokens:
-                token = remove_non_alphanumeric(token)
-                if len(token) == 0:
-                    continue
-                elif is_integer(token):
-                    token = "NUM"
-                else:
-                    token = stemmer.stem(token)
-                    token = token.lower()
-                normaled_token.append(token)
-            #find bigram in the normaled token
-            bigram_list = list(bigrams(normaled_token))
-            for bigram in bigram_list:
-                bigram_freq_dict[bigram] = 1 + bigram_freq_dict.get(bigram,0)
-    
-    with open('bigram_freq_dict.pkl', 'wb') as f:
-        pickle.dump(bigram_freq_dict, f)
+
     
 
 
@@ -143,7 +103,7 @@ def bigram_frquency():
 #DF_count, document freq
 def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_count):
     bigram = (given_word,query_word)
-    if given_word in tokens_count and bigram in bigram_freq_dict and query_word in unigram_percentage:
+    if bigram in bigram_freq_dict:
         # print(f"{bigram}'s freq is {bigram_freq_dict[bigram]}")
         #c(w_i-1)
         given_word_freq = tokens_count[given_word]
@@ -151,28 +111,48 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
         bigram_freq = bigram_freq_dict[bigram]
         #(1-lamda)* c(w_i-1*w_i)/c(w_i-1)
         mle = 0.1 * (bigram_freq/given_word_freq)
+        #lamda*p(w_i)
         parameter = 0.9 * unigram_percentage[query_word]
         return mle + parameter
     else:
         return 0
 
+def LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
+    value = float("-inf")
+    output = ""
+    for bigram in bigram_freq_dict:
+        if bigram[0] == given_word:
+            token = bigram[1]
+            LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
+            if value< LTS_value:
+                output = token
+    return output
 def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
+    total_LTS = 0
     top_ten_LTS_tokens = []  
-    for token in tokens_count:
-        LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
-        print(f"Token: {token},LTS:{LTS_value}")
-        # If the length of top_ten_LTS_tokens is less than 10, simply add the token
-        if len(top_ten_LTS_tokens) < 10:
-            heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
-        else:
-            # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
-            if LTS_value > top_ten_LTS_tokens[0][0]:
-                heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
-                heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
+    for bigram in bigram_freq_dict:
+        if bigram[0] == given_word:
+            token = bigram[1]
+            LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
+            total_LTS += LTS_value
+            # If the length of top_ten_LTS_tokens is less than 10, simply add the token
+            if len(top_ten_LTS_tokens) < 10:
+                heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
+            else:
+                # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
+                if LTS_value > top_ten_LTS_tokens[0][0]:
+                    heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
+                    heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
 
     # Once the loop is done, the top_ten_LTS_tokens list will contain the top 10 tokens with the highest LTS values
     top_ten_LTS_tokens = [(value, token) for value, token in sorted(top_ten_LTS_tokens, reverse=True)]
-
+    
+    
+    with open ("LTS_top10.txt", "w") as f:
+        print(top_ten_LTS_tokens, file=f)
+        print(total_LTS)
+        
+    
 
 #bigram(aboslute dicounts smoothing)
 #unigram_percenrage: a hash table that contain all p(w)
@@ -181,7 +161,7 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 #unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
 def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_count):
     bigram = (given_word,query_word)
-    if given_word in tokens_count and bigram in bigram_freq_dict and query_word in unigram_percentage:
+    if bigram in bigram_freq_dict:
         #max(c(w_i,w_i-1),0)
         bigram_freq = max(bigram_freq_dict[bigram] - 0.1,0)
         #unique word count:
@@ -196,25 +176,51 @@ def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_cou
 
 def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     top_ten_ADS_tokens = []  
-    for token in tokens_count:
-        ADS_value = ADS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
-        print(f"Token: {token},ADS:{ADS_value}")
-        # If the length of top_ten_LTS_tokens is less than 10, simply add the token
-        if len(top_ten_ADS_tokens) < 10:
-            heapq.heappush(top_ten_ADS_tokens, (ADS_value, token))
-        else:
-            # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
-            if ADS_value > top_ten_ADS_tokens[0][0]:
-                heapq.heappop(top_ten_ADS_tokens)  # Remove the smallest LTS value
-                heapq.heappush(top_ten_ADS_tokens, (ADS_value, token))  # Push the new LTS value and token
+    total_ADS = 0
+    for bigram in bigram_freq_dict:
+        if bigram[0] == given_word:
+            token = bigram[1]
+            ADS_value = ADS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
+            total_ADS += ADS_value
+            # If the length of top_ten_LTS_tokens is less than 10, simply add the token
+            if len(top_ten_ADS_tokens) < 10:
+                heapq.heappush(top_ten_ADS_tokens, (ADS_value, token))
+            else:
+                # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
+                if ADS_value > top_ten_ADS_tokens[0][0]:
+                    heapq.heappop(top_ten_ADS_tokens)  # Remove the smallest LTS value
+                    heapq.heappush(top_ten_ADS_tokens, (ADS_value, token))  # Push the new LTS value and token
 
     # Once the loop is done, the top_ten_ADS_tokens list will contain the top 10 tokens with the highest LTS values
     top_ten_ADS_tokens = [(value, token) for value, token in sorted(top_ten_ADS_tokens, reverse=True)]
-    with open("output.txt", "w") as f:
+    with open ("ADF_top10.txt", "w") as f:
         print(top_ten_ADS_tokens, file=f)
+        print(total_ADS)
 
+def unigram_genrate_doc(unigram_percentage, doc_len, total_doc):
+    unigram_docs = []
+    for i in range(total_doc):
+        doc = ""
+        for j in range(doc_len):
+            cur_word = random.choice(list(unigram_percentage.keys()))
+            cur_word += " "
+            doc += cur_word
+        unigram_docs.append(doc)
+    return unigram_docs
+
+def LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count):
+    LTS_docs = []
+    for i in range(total_doc):
+        cur_word = random.choice(list(unigram_percentage.keys()))
+        doc = []
+        while len(doc) < 20:
+            given_word = cur_word
+            cur_word = LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count) 
+            doc.append(cur_word)
+        LTS_docs.append(doc)
+    return LTS_docs
 def main():
-
+    # process_documents()
     with open("tokens_count.pkl", "rb") as f:
         tokens_count = pickle.load(f)
     with open("total_count.txt", "r") as f:
@@ -225,14 +231,32 @@ def main():
         bigram_freq_dict = pickle.load(f)
     with open("output.txt", "w") as f:
         print(bigram_freq_dict, file=f)
-
-
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
     #Find the top 10 most frequent word given the word "good using LTS" 
     # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     #Find the top 10 most frequent word given the word "good using ADS"
-    top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    
+    #generate docs
+    doc_len = 20
+    total_doc = 10
+    print("===============================UNI===============================")
+    #unigram: 
+    unigram_docs = unigram_genrate_doc(unigram_percentage, doc_len, total_doc)
+    for doc in unigram_docs:
+        print(doc)
+    print("===============================LTS===============================")
+    #LTS
+    LTS_docs = LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count)
+    for doc in LTS_docs:
+        sentence = ' '.join(doc)
+        print(sentence)
+    #ADS
+    
+
+    
+
 
             
     
