@@ -110,12 +110,18 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
         #c(w_i-1,w_i)
         bigram_freq = bigram_freq_dict[bigram]
         #(1-lamda)* c(w_i-1*w_i)/c(w_i-1)
-        mle = 0.1 * (bigram_freq/given_word_freq)
+        mle = (bigram_freq/given_word_freq) * 0.1
         #lamda*p(w_i)
         parameter = 0.9 * unigram_percentage[query_word]
         return mle + parameter
-    else:
-        return 0
+    else: 
+        given_word_freq = tokens_count[given_word]
+        bigram_freq = 0
+        mle = (bigram_freq/given_word_freq) * 0.1
+        parameter = 0.9 * unigram_percentage[query_word]
+        return mle + parameter
+
+
 
 def LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     value = float("-inf")
@@ -132,19 +138,18 @@ def LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count
 def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     total_LTS = 0
     top_ten_LTS_tokens = []  
-    for bigram in bigram_freq_dict:
-        if bigram[0] == given_word:
-            token = bigram[1]
-            LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
-            total_LTS += LTS_value
-            # If the length of top_ten_LTS_tokens is less than 10, simply add the token
-            if len(top_ten_LTS_tokens) < 10:
-                heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
-            else:
-                # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
-                if LTS_value > top_ten_LTS_tokens[0][0]:
-                    heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
-                    heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
+    for word in tokens_count:
+        token = word
+        LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
+        total_LTS += LTS_value
+        # If the length of top_ten_LTS_tokens is less than 10, simply add the token
+        if len(top_ten_LTS_tokens) < 10:
+            heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))
+        else:
+            # If the current LTS value is greater than the smallest LTS value in top_ten_LTS_tokens, replace it
+            if LTS_value > top_ten_LTS_tokens[0][0]:
+                heapq.heappop(top_ten_LTS_tokens)  # Remove the smallest LTS value
+                heapq.heappush(top_ten_LTS_tokens, (LTS_value, token))  # Push the new LTS value and token
 
     # Once the loop is done, the top_ten_LTS_tokens list will contain the top 10 tokens with the highest LTS values
     top_ten_LTS_tokens = [(value, token) for value, token in sorted(top_ten_LTS_tokens, reverse=True)]
@@ -152,7 +157,7 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     
     with open ("LTS_top10.txt", "w") as f:
         print(top_ten_LTS_tokens, file=f)
-        print(total_LTS)
+        print("total prob" , total_LTS)
         
     
 
@@ -197,7 +202,7 @@ def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     top_ten_ADS_tokens = [(value, token) for value, token in sorted(top_ten_ADS_tokens, reverse=True)]
     with open ("ADF_top10.txt", "w") as f:
         print(top_ten_ADS_tokens, file=f)
-        print(total_ADS)
+        print("total prob",total_ADS)
 
 def unigram_genrate_doc(unigram_percentage, doc_len, total_doc):
     unigram_docs = []
@@ -233,6 +238,8 @@ def main():
         bigram_freq_dict = pickle.load(f)
     with open("output.txt", "w") as f:
         print(bigram_freq_dict, file=f)
+
+
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
     #Find the top 10 most frequent word given the word "good using LTS" 
@@ -240,6 +247,10 @@ def main():
     #Find the top 10 most frequent word given the word "good using ADS"
     # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     
+    # sum = 0
+    # for word in tokens_count:
+    #     sum += LTS(unigram_percentage, bigram_freq_dict, word, given_word, tokens_count)
+    # print(sum)
     #generate docs
     # doc_len = 20
     # total_doc = 10
