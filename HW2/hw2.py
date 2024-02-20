@@ -124,9 +124,11 @@ def LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count
         if bigram[0] == given_word:
             token = bigram[1]
             LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
-            if value< LTS_value:
+            if value < LTS_value:
                 output = token
     return output
+
+
 def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
     total_LTS = 0
     top_ten_LTS_tokens = []  
@@ -234,24 +236,24 @@ def main():
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
     #Find the top 10 most frequent word given the word "good using LTS" 
-    # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     #Find the top 10 most frequent word given the word "good using ADS"
     # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     
     #generate docs
-    doc_len = 20
-    total_doc = 10
-    print("===============================UNI===============================")
-    #unigram: 
-    unigram_docs = unigram_genrate_doc(unigram_percentage, doc_len, total_doc)
-    for doc in unigram_docs:
-        print(doc)
-    print("===============================LTS===============================")
-    #LTS
-    LTS_docs = LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count)
-    for doc in LTS_docs:
-        sentence = ' '.join(doc)
-        print(sentence)
+    # doc_len = 20
+    # total_doc = 10
+    # print("===============================UNI===============================")
+    # #unigram: 
+    # unigram_docs = unigram_genrate_doc(unigram_percentage, doc_len, total_doc)
+    # for doc in unigram_docs:
+    #     print(doc)
+    # print("===============================LTS===============================")
+    # #LTS
+    # LTS_docs = LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count)
+    # for doc in LTS_docs:
+    #     sentence = ' '.join(doc)
+    #     print(sentence)
     #ADS
     
 
