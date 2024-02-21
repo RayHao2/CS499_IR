@@ -91,7 +91,7 @@ def unique_given_word_count(token_counts, bigram_frquency_dic):
         unique_given_word_count[bigram[1]] = 1 + unique_given_word_count.get(bigram[1], 0)
         # print("found one for ", token)
     
-    print("done")
+    print(unique_given_word_count)
     with open('unique_given_word_count.pkl', 'wb') as f:
         pickle.dump(unique_given_word_count, f)
 
@@ -113,8 +113,6 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
         bigram_freq = 0
     #c(w_i-1)
     given_word_freq = tokens_count[given_word]
-    #c(w_i-1,w_i)
-    bigram_freq = bigram_freq_dict[bigram]
     #(1-lamda)* c(w_i-1*w_i)/c(w_i-1)
     mle = (bigram_freq/given_word_freq) * 0.1
     #lamda*p(w_i)
@@ -167,7 +165,7 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 #Given_word, w_i-1
 #DF_count, document freq
 #unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
-def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_count):
+def ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, query_word, given_word, tokens_count):
     bigram = (given_word,query_word)
     if bigram in bigram_freq_dict:
         #max(c(w_i,w_i-1),0)
@@ -175,21 +173,25 @@ def ADS(unigram_percentage, bigram_freq_dict, query_word, given_word, tokens_cou
     else:
         bigram_freq = 0
     #unique word count:
-    unique_count = unique_given_word_count(query_word, bigram_freq_dict) * 0.1
+    unique_count = unique_given_word_count[given_word] * 0.1
     #unigram prob of given_word
     given_word_freq = unigram_percentage[given_word]
-    #length of given word
     #should be count of the total bigram start with given word
-    given_word_count = tokens_count[given_word] 
+    given_word_count = 0
+    for bigram in bigram_freq_dict:
+        if bigram[0] == given_word:
+            given_word_count += 1
+
+            
     return (bigram_freq + (unique_count * given_word_freq)) / given_word_count
 
 
-def top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
+def top_ten_ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, given_word, tokens_count):
     top_ten_ADS_tokens = []  
     total_ADS = 0
     for word in tokens_count:
         token = word
-        ADS_value = ADS(unigram_percentage, bigram_freq_dict,token, given_word, tokens_count)
+        ADS_value = ADS(unigram_percentage, bigram_freq_dict,token, unique_given_word_count, given_word, tokens_count)
         total_ADS += ADS_value
         # If the length of top_ten_LTS_tokens is less than 10, simply add the token
         if len(top_ten_ADS_tokens) < 10:
@@ -241,18 +243,18 @@ def main():
 
     with open('unique_given_word_count.pkl', 'rb') as f:
         unique_given_word_count = pickle.load(f)
-        
-    with open("output.txt", "w") as f:
-        print(unique_given_word_count, file=f)
-    
 
+    # with open("output.txt", "w") as f:
+    #     print(unique_given_word_count, file=f)
+    
+    # unique_given_word_count(tokens_count, bigram_freq_dict)
 
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
     #Find the top 10 most frequent word given the word "good using LTS" 
     # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     #Find the top 10 most frequent word given the word "good using ADS"
-    # top_ten_ADS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    top_ten_ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, given_word, tokens_count)
 
 
 
