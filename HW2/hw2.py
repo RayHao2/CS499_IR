@@ -85,17 +85,27 @@ def process_documents():
         pickle.dump(bigram_freq_dict, f)
 
 
-def unique_given_word_count(token_counts, bigram_frquency_dic):
-    unique_given_word_count = {}
+#find number of w_i-1 given the w_i:
+def count_gien_word_given_query_word(bigram_frquency_dic):
+    count_gien_word_given_query_word = {}
     for bigram in bigram_frquency_dic:
-        unique_given_word_count[bigram[1]] = 1 + unique_given_word_count.get(bigram[1], 0)
+        count_gien_word_given_query_word[bigram[1]] = 1 + count_gien_word_given_query_word.get(bigram[1], 0)
         # print("found one for ", token)
     
-    print(unique_given_word_count)
-    with open('unique_given_word_count.pkl', 'wb') as f:
-        pickle.dump(unique_given_word_count, f)
+    # print(count_gien_word_given_query_word)
+    with open('count_gien_word_given_query_word.pkl', 'wb') as f:
+        pickle.dump(count_gien_word_given_query_word, f)
 
-
+#find number of bigram starting with w_i-1
+def count_big_freq_of_given_word(bigram_frquency_dic):
+    count_big_freq_of_given_word = {}
+    for bigram in bigram_frquency_dic:
+        count_big_freq_of_given_word[bigram[0]] = bigram_frquency_dic[bigram] + count_big_freq_of_given_word.get(bigram[1], 0)
+        # print("found one for ", token)
+    
+    # print(count_big_freq_of_given_word)
+    with open('count_big_freq_of_given_word.pkl', 'wb') as f:
+        pickle.dump(count_big_freq_of_given_word, f)
 
     
 
@@ -165,33 +175,35 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 #Given_word, w_i-1
 #DF_count, document freq
 #unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
-def ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, query_word, given_word, tokens_count):
+def ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, query_word, given_word, tokens_count):
     bigram = (given_word,query_word)
     if bigram in bigram_freq_dict:
         #max(c(w_i,w_i-1),0)
         bigram_freq = max(bigram_freq_dict[bigram] - 0.1,0)
     else:
         bigram_freq = 0
-    #unique word count:
-    unique_count = unique_given_word_count[given_word] * 0.1
+
+    if query_word in count_gien_word_given_query_word:
+        #number of w_i-1 given the w_i:
+        unique_count = count_gien_word_given_query_word[query_word] * 0.1
+    else:
+        unique_count = 0.1
     #unigram prob of given_word
     given_word_freq = unigram_percentage[given_word]
-    #should be count of the total bigram start with given word
-    given_word_count = 0
-    for bigram in bigram_freq_dict:
-        if bigram[0] == given_word:
-            given_word_count += 1
+    #number of bigram starting with w_i-1
+    given_word_count = count_big_freq_of_given_word[given_word]
 
-            
+
+
     return (bigram_freq + (unique_count * given_word_freq)) / given_word_count
 
 
-def top_ten_ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, given_word, tokens_count):
+def top_ten_ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, given_word, tokens_count):
     top_ten_ADS_tokens = []  
     total_ADS = 0
     for word in tokens_count:
         token = word
-        ADS_value = ADS(unigram_percentage, bigram_freq_dict,token, unique_given_word_count, given_word, tokens_count)
+        ADS_value = ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, token, given_word, tokens_count)
         total_ADS += ADS_value
         # If the length of top_ten_LTS_tokens is less than 10, simply add the token
         if len(top_ten_ADS_tokens) < 10:
@@ -241,20 +253,19 @@ def main():
     with open("bigram_freq_dict.pkl", "rb") as f:
         bigram_freq_dict = pickle.load(f)
 
-    with open('unique_given_word_count.pkl', 'rb') as f:
-        unique_given_word_count = pickle.load(f)
-
-    # with open("output.txt", "w") as f:
-    #     print(unique_given_word_count, file=f)
+    with open("count_gien_word_given_query_word.pkl", "rb") as f:
+        count_gien_word_given_query_word = pickle.load(f)
     
-    # unique_given_word_count(tokens_count, bigram_freq_dict)
+    with open("count_big_freq_of_given_word.pkl", "rb") as f:
+        count_big_freq_of_given_word = pickle.load(f)
+
 
     #Find all bigram that came with good at first(W_i-1)
     given_word = "good"
     #Find the top 10 most frequent word given the word "good using LTS" 
     # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
     #Find the top 10 most frequent word given the word "good using ADS"
-    top_ten_ADS(unigram_percentage, bigram_freq_dict, unique_given_word_count, given_word, tokens_count)
+    top_ten_ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, given_word, tokens_count)
 
 
 
