@@ -5,6 +5,7 @@ import os
 import json
 import time
 import re
+import numpy as np
 def remove_non_alphanumeric(input_string):
     # Use regular expression to keep only English letters and numbers
     result = re.sub(r'[^a-zA-Z0-9]', '', input_string)
@@ -17,14 +18,12 @@ def is_integer(s):
     except ValueError:
         return False
     
-token = "yelpcombizphotoscbw85"
-token = remove_non_alphanumeric(token)
-# stemmer = PorterStemmer()
-# if len(token) == 0:
-#     print(0)
-# elif is_integer(token):
-#     token = "NUM"
-# else:
-#     token = stemmer.stem(token)
-#     token = token.lower()
-# print(token)
+
+
+words = ["HI", "My", "Name", "IS"]
+prob = [0,0,0,0.9]
+prob = np.array(prob)
+prob /= prob.sum()
+random_index = np.random.choice(len(words), p=prob)
+print(random_index)
+

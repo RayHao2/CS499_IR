@@ -9,8 +9,8 @@ import heapq
 from nltk.util import bigrams
 import time
 import random
-
-
+import numpy as np
+import math
 
 def is_integer(s):
     try:
@@ -100,7 +100,7 @@ def count_gien_word_given_query_word(bigram_frquency_dic):
 def count_big_freq_of_given_word(bigram_frquency_dic):
     count_big_freq_of_given_word = {}
     for bigram in bigram_frquency_dic:
-        count_big_freq_of_given_word[bigram[0]] = bigram_frquency_dic[bigram] + count_big_freq_of_given_word.get(bigram[1], 0)
+        count_big_freq_of_given_word[bigram[0]] = bigram_frquency_dic[bigram] + count_big_freq_of_given_word.get(bigram[0], 0)
         # print("found one for ", token)
     
     # print(count_big_freq_of_given_word)
@@ -117,11 +117,12 @@ def count_big_freq_of_given_word(bigram_frquency_dic):
 #DF_count, document freq
 def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_count):
     bigram = (given_word,query_word)
+    #c(w_i-1, w_i)
     if bigram in bigram_freq_dict:
         bigram_freq = bigram_freq_dict[bigram]
     else:
         bigram_freq = 0
-    #c(w_i-1)
+    #c(w_i)
     given_word_freq = tokens_count[given_word]
     #(1-lamda)* c(w_i-1*w_i)/c(w_i-1)
     mle = (bigram_freq/given_word_freq) * 0.1
@@ -133,15 +134,17 @@ def LTS(unigram_percentage, bigram_freq_dict,query_word, given_word, tokens_coun
 
 
 def LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
-    value = float("-inf")
-    output = ""
-    for bigram in bigram_freq_dict:
-        if bigram[0] == given_word:
-            token = bigram[1]
-            LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
-            if value < LTS_value:
-                output = token
-    return output
+    words = []
+    prob = []
+    for token in tokens_count:
+        query_word = token
+        LTS_value = LTS(unigram_percentage, bigram_freq_dict, token, given_word, tokens_count)
+        words.append(query_word)
+        prob.append(LTS_value)
+    prob = np.array(prob)
+    prob /= prob.sum()
+    random_index = np.random.choice(len(words), p=prob)
+    return (words[random_index], prob[random_index])
 
 
 def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
@@ -175,35 +178,44 @@ def top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count):
 #Given_word, w_i-1
 #DF_count, document freq
 #unique_given_word_count: the count of how many unique word w_i-1(given_word), w_i will have 
-def ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, query_word, given_word, tokens_count):
+def ADS(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, query_word, given_word):
     bigram = (given_word,query_word)
     if bigram in bigram_freq_dict:
         #max(c(w_i,w_i-1),0)
         bigram_freq = max(bigram_freq_dict[bigram] - 0.1,0)
     else:
         bigram_freq = 0
-
-    if query_word in count_gien_word_given_query_word:
+    if query_word in count_given_word_given_query_word:
         #number of w_i-1 given the w_i:
-        unique_count = count_gien_word_given_query_word[query_word] * 0.1
+        unique_count = count_given_word_given_query_word[query_word] * 0.1
     else:
-        unique_count = 0.1
+        unique_count = 0
     #unigram prob of given_word
     given_word_freq = unigram_percentage[given_word]
     #number of bigram starting with w_i-1
     given_word_count = count_big_freq_of_given_word[given_word]
-
-
-
     return (bigram_freq + (unique_count * given_word_freq)) / given_word_count
 
 
-def top_ten_ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, given_word, tokens_count):
+def ADS_next_word(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, tokens_count, given_word):
+    words = []
+    prob = []
+    for token in tokens_count:
+        query_word = token
+        ADS_value = ADS(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, token, given_word)
+        words.append(query_word)
+        prob.append(ADS_value)
+    prob = np.array(prob)
+    prob /= prob.sum()
+    random_index = np.random.choice(len(words), p=prob)
+    return (words[random_index], prob[random_index])
+
+def top_ten_ADS(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, given_word, tokens_count):
     top_ten_ADS_tokens = []  
     total_ADS = 0
     for word in tokens_count:
         token = word
-        ADS_value = ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, token, given_word, tokens_count)
+        ADS_value = ADS(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, token, given_word)
         total_ADS += ADS_value
         # If the length of top_ten_LTS_tokens is less than 10, simply add the token
         if len(top_ten_ADS_tokens) < 10:
@@ -222,26 +234,69 @@ def top_ten_ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_quer
 
 def unigram_genrate_doc(unigram_percentage, doc_len, total_doc):
     unigram_docs = []
+    words = list(unigram_percentage.keys())
+    prob = list(unigram_percentage.values())   
+    prob = np.array(prob)
+    prob /= prob.sum()
     for i in range(total_doc):
         doc = ""
+        likelihood = 0
         for j in range(doc_len):
-            cur_word = random.choice(list(unigram_percentage.keys()))
+            random_index = np.random.choice(len(words), p=prob)
+            cur_word = words[random_index]
             cur_word += " "
             doc += cur_word
-        unigram_docs.append(doc)
+            if likelihood == 0:
+                likelihood = prob[random_index]
+            else:
+                likelihood = likelihood*prob[random_index]
+        doc_item = (doc , likelihood)
+        unigram_docs.append(doc_item)
     return unigram_docs
 
-def LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count):
+def LTS_genrate_doc(unigram_percentage, bigram_freq_dict, tokens_count, doc_len, total_doc):
     LTS_docs = []
+    uni_words = list(unigram_percentage.keys())
+    uni_prob = list(unigram_percentage.values())   
+    uni_prob = np.array(uni_prob)
+    uni_prob /= uni_prob.sum()
     for i in range(total_doc):
-        cur_word = random.choice(list(unigram_percentage.keys()))
-        doc = []
-        while len(doc) < 20:
-            given_word = cur_word
+        start_word = uni_words[np.random.choice(len(uni_words), p=uni_prob)]
+        doc = [start_word]
+        likelihood = 0
+        for i in range(1, doc_len):
+            given_word = doc[i-1]
             cur_word = LTS_next_word(unigram_percentage, bigram_freq_dict, given_word, tokens_count) 
-            doc.append(cur_word)
-        LTS_docs.append(doc)
+            doc.append(cur_word[0])
+            if likelihood == 0:
+                likelihood = cur_word[1]
+            else:
+                likelihood = likelihood * cur_word[1]
+        doc_item = (doc, likelihood)
+        LTS_docs.append(doc_item)
     return LTS_docs
+
+def ADS_generate_doc(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, tokens_count, doc_len, total_doc):
+    ADS_docs = []
+    uni_words = list(unigram_percentage.keys())
+    uni_prob = list(unigram_percentage.values())   
+    uni_prob = np.array(uni_prob)
+    uni_prob /= uni_prob.sum()
+    for i in range(total_doc):
+        start_word = uni_words[np.random.choice(len(uni_words), p=uni_prob)]
+        doc = [start_word]
+        likelihood = 0
+        for i in range(1, doc_len):
+            given_word = doc[i-1]
+            cur_word = ADS_next_word(unigram_percentage, bigram_freq_dict, count_given_word_given_query_word, count_big_freq_of_given_word, tokens_count, given_word)
+            doc.append(cur_word[0])
+            if likelihood == 0:
+                likelihood = cur_word[1]
+            else:
+                likelihood = likelihood * cur_word[1]
+        doc_item = (doc, likelihood)
+        ADS_docs.append(doc_item)
+    return ADS_docs
 def main():
     # process_documents()
     with open("tokens_count.pkl", "rb") as f:
@@ -253,6 +308,7 @@ def main():
     with open("bigram_freq_dict.pkl", "rb") as f:
         bigram_freq_dict = pickle.load(f)
 
+
     with open("count_gien_word_given_query_word.pkl", "rb") as f:
         count_gien_word_given_query_word = pickle.load(f)
     
@@ -260,36 +316,39 @@ def main():
         count_big_freq_of_given_word = pickle.load(f)
 
 
-    #Find all bigram that came with good at first(W_i-1)
+    #find top 10 word follow the given_word
+
     given_word = "good"
-    #Find the top 10 most frequent word given the word "good using LTS" 
-    # top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
-    #Find the top 10 most frequent word given the word "good using ADS"
+    # Find the top 10 most frequent word given the word "good using LTS" 
+    top_ten_LTS(unigram_percentage, bigram_freq_dict, given_word, tokens_count)
+    # Find the top 10 most frequent word given the word "good using ADS"
     top_ten_ADS(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, given_word, tokens_count)
 
 
-
-    # sum = 0
-    # for word in tokens_count:
-    #     sum += LTS(unigram_percentage, bigram_freq_dict, word, given_word, tokens_count)
-    # print(sum)
-    #generate docs
-    # doc_len = 20
-    # total_doc = 10
-    # print("===============================UNI===============================")
-    # #unigram: 
-    # unigram_docs = unigram_genrate_doc(unigram_percentage, doc_len, total_doc)
-    # for doc in unigram_docs:
-    #     print(doc)
-    # print("===============================LTS===============================")
-    # #LTS
-    # LTS_docs = LTS_genrate_doc(unigram_percentage, doc_len, total_doc, bigram_freq_dict, tokens_count)
-    # for doc in LTS_docs:
-    #     sentence = ' '.join(doc)
-    #     print(sentence)
-    #ADS
+    # generate docs 
+    doc_len = 20
+    total_doc = 10
+    #unigram: 
+    print("===============================UNI===============================")
+    uni_doc = unigram_genrate_doc(unigram_percentage, doc_len, total_doc)
+    with open("UNI_generate.txt", "w") as f:
+        for doc in uni_doc:
+            print(f"docs: {doc[0]}, doc's len: {len(doc[0].split())} likelihood: {doc[1]}", file=f)
     
-
+    #LTS    
+    print("===============================LTS===============================")
+    LTS_docs = LTS_genrate_doc(unigram_percentage, bigram_freq_dict, tokens_count, doc_len, total_doc)
+    with open("LTS_generate.txt", "w") as f:
+        for doc in LTS_docs:
+            sentence = ' '.join(doc[0])
+            print(f"docs: {sentence}, doc's len: {len(doc[0])} likelihood: {doc[1]}", file=f)
+    #ADS
+    print("===============================ADS===============================")
+    ADS_docs = ADS_generate_doc(unigram_percentage, bigram_freq_dict, count_gien_word_given_query_word, count_big_freq_of_given_word, tokens_count, doc_len, total_doc)
+    with open("ADS_generate.txt", "w") as f:
+        for doc in ADS_docs:
+            sentence = ' '.join(doc[0])
+            print(f"docs: {sentence}, doc's len: {len(doc[0])} likelihood: {doc[1]}", file=f)
     
 
 
