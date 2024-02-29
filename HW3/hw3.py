@@ -1,4 +1,5 @@
 import multiprocessing
+import time
 from gensim.models import Word2Vec
 import gensim.downloader
 import os
@@ -11,6 +12,13 @@ import pickle
 import nltk
 from nltk.corpus import stopwords
 from gensim.models import word2vec
+import gensim.downloader as api
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+import heapq
+from numpy.linalg import norm
+from gensim.models import TfidfModel
+from gensim.corpora import Dictionary
 def is_integer(s):
     try:
         int(s)
@@ -80,35 +88,129 @@ def process_query():
     with open("query.pkl", "wb") as f:
         pickle.dump(procssed_query,f)
         
+def convert_to_vector(doc,model):
+    doc_vector = np.zeros(model.vector_size)
+    word_count = 0
+    for word in doc:
+        if word in model.wv:
+            doc_vector += model.wv[word]
+            word_count += 1
+    if word_count != 0:
+        doc_vector /= word_count
+    return doc_vector
+
 
 def word2Vec():
     with open("documents.pkl", "rb") as f:
         documents = pickle.load(f)
-    with open("query.pkl", "wb") as f:
+    with open("query.pkl", "rb") as f:
         querys = pickle.load(f)
     # with open("outpu.txt", "w") as f:
     #     for doc in documents:
     #         print(doc,file=f)
     
-    cores = multiprocessing.cpu_count() 
-
-    w2v_model = Word2Vec(min_count=20,
-                        window=2,
-                        size=300,
-                        sample=6e-5, 
-                        alpha=0.03, 
-                        min_alpha=0.0007, 
-                        negative=20,
-                        workers=cores-1)
-
+    train_doc = documents + querys
+    
+    #uncomment if first run
+    # start_time = time.time()
+    # cores = multiprocessing.cpu_count() 
+    # model = Word2Vec(sentences=train_doc, vector_size=100, window=5, min_count=1, workers=cores-1)
+    # model.save("word2vec.model")
+    # end_time = time.time()
+    # print("Train time: ", end_time - start_time)
     
     
+    #load the model
+    model = Word2Vec.load("word2vec.model")
+    doc_vectors = []
+    query_vectors = []
+    
+    for doc in documents:
+        doc_vectors.append(convert_to_vector(doc,model))
+    for query in querys:
+        query_vectors.append(convert_to_vector(query,model))
+    
+    #calulate cosine sim   
+    for i in range(len(query_vectors)):
+        query_vec = query_vectors[i]
+        top_similarities = []
+        for j in range(len(doc_vectors)):
+            sim = np.dot(query_vec,doc_vectors[j]) / (norm(query_vec) * norm(doc_vectors[j]))
+            if len(top_similarities) < 3:
+                heapq.heappush(top_similarities, (sim, j))
+            else:
+                if sim > top_similarities[0][0]:
+                    heapq.heappop(top_similarities)  
+                    heapq.heappush(top_similarities, (sim, j))
 
+        with open("output.txt", "a") as f:
+            print(f"Query: {querys[i]}", file=f)
+        for sim in top_similarities:
+            with open("output.txt", "a") as f:
+                print(f"{sim[0]} {documents[sim[1]]}", file=f)
+            
+   
+def tfidf():
+    with open("documents.pkl", "rb") as f:
+        documents = pickle.load(f)
+    with open("query.pkl", "rb") as f:
+        querys = pickle.load(f)
+    
+    train_doc = documents + querys
+    dct = Dictionary(train_doc)
+    train_doc_corpus = [dct.doc2bow(doc) for doc in train_doc] 
+    
+    #run first time
+    start_time = time.time()
+    model = TfidfModel(train_doc_corpus)
+    end_time = time.time()
+    print("Train time: ", end_time - start_time)
+    model.save("tfidf.model")
+
+
+    #convert documents and querys into bow
+    dct = Dictionary(documents)
+    doc_bow = [dct.doc2bow(doc) for doc in documents] 
+    dct = Dictionary(querys)
+    query_bow = [dct.doc2bow(doc) for doc in querys] 
+    
+    #get the vector for querys and documents
+    doc_vectors = []
+    query_vectors = []
+    for doc in doc_bow:
+        doc_vectors.append(model[doc])
+    for query in query_bow:
+        query_vectors.append(model[query])
+
+    
+    #calulate cosine sim   
+    for i in range(len(query_vectors)):
+        query_vec = query_vectors[i]
+        top_similarities = []
+        for j in range(len(doc_vectors)):
+            sim = np.dot(query_vec,doc_vectors[j]) / (norm(query_vec) * norm(doc_vectors[j]))
+            if len(top_similarities) < 3:
+                heapq.heappush(top_similarities, (sim, j))
+            else:
+                if sim > top_similarities[0][0]:
+                    heapq.heappop(top_similarities)  
+                    heapq.heappush(top_similarities, (sim, j))
+
+        with open("output.txt", "a") as f:
+            print(f"Query: {querys[i]}", file=f)
+        for sim in top_similarities:
+            with open("output.txt", "a") as f:
+                print(f"{sim[0]} {documents[sim[1]]}", file=f)
+    
+
+    
+    # print(vector)
 
 def main(): 
-    process_query()
+    # process_query()
     # process_documents()
     # word2Vec()
+    tfidf()
     
 
 
