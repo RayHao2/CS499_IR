@@ -16,9 +16,9 @@ import gensim.downloader as api
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import heapq
-from numpy.linalg import norm
 from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
+
 def is_integer(s):
     try:
         int(s)
@@ -88,26 +88,38 @@ def process_query():
     with open("query.pkl", "wb") as f:
         pickle.dump(procssed_query,f)
         
-def convert_to_vector(doc,model):
-    doc_vector = np.zeros(model.vector_size)
-    word_count = 0
+def average_vector(doc, model):
+    output = []
     for word in doc:
-        if word in model.wv:
-            doc_vector += model.wv[word]
-            word_count += 1
-    if word_count != 0:
-        doc_vector /= word_count
-    return doc_vector
+        cur_term_avg_weight = np.mean(model.wv[word])
+        output.append(cur_term_avg_weight)
+    return output
 
 
+
+def cos_sim(query_vec, doc_vec):
+    if len(query_vec) < len(doc_vec):
+        query_vec_padding = np.pad(query_vec, (0, len(doc_vec) - len(query_vec)), mode='constant')
+        return np.dot(query_vec_padding, doc_vec) / (np.linalg.norm(query_vec_padding) * np.linalg.norm(doc_vec))
+    
+    elif len(query_vec) > len(doc_vec):
+        doc_vec_padding = np.pad(doc_vec, (0, len(query_vec) - len(doc_vec)), mode='constant')
+        return np.dot(query_vec, doc_vec_padding) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec_padding))
+    
+    
+    else:
+        return np.dot(query_vec, doc_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec))
+        
+
+        
 def word2Vec():
     with open("documents.pkl", "rb") as f:
         documents = pickle.load(f)
     with open("query.pkl", "rb") as f:
         querys = pickle.load(f)
-    # with open("outpu.txt", "w") as f:
-    #     for doc in documents:
-    #         print(doc,file=f)
+    # with open("output.txt", "w") as f:
+        # for doc in documents:
+        #     print(doc,file=f)
     
     train_doc = documents + querys
     
@@ -125,17 +137,24 @@ def word2Vec():
     doc_vectors = []
     query_vectors = []
     
+
+    
     for doc in documents:
-        doc_vectors.append(convert_to_vector(doc,model))
+        doc_vectors.append(average_vector(doc,model))
     for query in querys:
-        query_vectors.append(convert_to_vector(query,model))
+        query_vectors.append(average_vector(query,model))
+
+    print(cos_sim(query_vectors[0], doc_vectors[0]))
+    
+    with open("output.txt", "w") as f:
+        f.write("")
     
     #calulate cosine sim   
     for i in range(len(query_vectors)):
         query_vec = query_vectors[i]
         top_similarities = []
         for j in range(len(doc_vectors)):
-            sim = np.dot(query_vec,doc_vectors[j]) / (norm(query_vec) * norm(doc_vectors[j]))
+            sim = cos_sim(query_vec,doc_vectors[j])
             if len(top_similarities) < 3:
                 heapq.heappush(top_similarities, (sim, j))
             else:
@@ -178,11 +197,15 @@ def tfidf():
     doc_vectors = []
     query_vectors = []
     for doc in doc_bow:
-        doc_vectors.append(model[doc])
+        vec = model[doc]
+        new_vec = [x[1] for x in vec]
+        doc_vectors.append(new_vec)
     for query in query_bow:
-        query_vectors.append(model[query])
+        vec = model[query]
+        new_vec = [x[1] for x in vec]
+        query_vectors.append(new_vec)
 
-    
+
     #calulate cosine sim   
     for i in range(len(query_vectors)):
         query_vec = query_vectors[i]
@@ -209,8 +232,8 @@ def tfidf():
 def main(): 
     # process_query()
     # process_documents()
-    # word2Vec()
-    tfidf()
+    word2Vec()
+    # tfidf()
     
 
 
