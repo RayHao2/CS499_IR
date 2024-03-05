@@ -89,26 +89,13 @@ def process_query():
         pickle.dump(procssed_query,f)
         
 def average_vector(doc, model):
-    output = []
-    for word in doc:
-        cur_term_avg_weight = np.mean(model.wv[word])
-        output.append(cur_term_avg_weight)
-    return output
+    doc_vector = model.wv[doc]
+    return np.mean(doc_vector, axis = 0)
 
 
 
 def cos_sim(query_vec, doc_vec):
-    if len(query_vec) < len(doc_vec):
-        query_vec_padding = np.pad(query_vec, (0, len(doc_vec) - len(query_vec)), mode='constant')
-        return np.dot(query_vec_padding, doc_vec) / (np.linalg.norm(query_vec_padding) * np.linalg.norm(doc_vec))
-    
-    elif len(query_vec) > len(doc_vec):
-        doc_vec_padding = np.pad(doc_vec, (0, len(query_vec) - len(doc_vec)), mode='constant')
-        return np.dot(query_vec, doc_vec_padding) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec_padding))
-    
-    
-    else:
-        return np.dot(query_vec, doc_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec))
+    return np.dot(query_vec, doc_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec))
         
 
         
@@ -136,20 +123,21 @@ def word2Vec():
     model = Word2Vec.load("word2vec.model")
     doc_vectors = []
     query_vectors = []
-    
 
-    
     for doc in documents:
+        if len(doc) == 0:
+            continue
         doc_vectors.append(average_vector(doc,model))
     for query in querys:
+        if len(query) == 0:
+            continue
         query_vectors.append(average_vector(query,model))
 
-    print(cos_sim(query_vectors[0], doc_vectors[0]))
     
     with open("output.txt", "w") as f:
         f.write("")
     
-    #calulate cosine sim   
+    # #calulate cosine sim   
     for i in range(len(query_vectors)):
         query_vec = query_vectors[i]
         top_similarities = []
@@ -168,7 +156,7 @@ def word2Vec():
             with open("output.txt", "a") as f:
                 print(f"{sim[0]} {documents[sim[1]]}", file=f)
             
-   
+
 def tfidf():
     with open("documents.pkl", "rb") as f:
         documents = pickle.load(f)
@@ -187,53 +175,54 @@ def tfidf():
     model.save("tfidf.model")
 
 
+
     #convert documents and querys into bow
     dct = Dictionary(documents)
     doc_bow = [dct.doc2bow(doc) for doc in documents] 
     dct = Dictionary(querys)
     query_bow = [dct.doc2bow(doc) for doc in querys] 
     
+    print(model[query_bow[0]])
+
     #get the vector for querys and documents
-    doc_vectors = []
-    query_vectors = []
-    for doc in doc_bow:
-        vec = model[doc]
-        new_vec = [x[1] for x in vec]
-        doc_vectors.append(new_vec)
-    for query in query_bow:
-        vec = model[query]
-        new_vec = [x[1] for x in vec]
-        query_vectors.append(new_vec)
+    # doc_vectors = []
+    # query_vectors = []
+    # for doc in doc_bow:
+    #     vec = [item[1] for item in model[doc]] 
+    #     if len(vec) != 0: 
+    #         doc_vectors.append(np.mean(vec))
+    # for query in query_bow:
+    #     vec =[item[1] for item in model[query]]
+    #     if len(vec) != 0: 
+    #         query_vectors.append(np.mean(vec))
+
 
 
     #calulate cosine sim   
-    for i in range(len(query_vectors)):
-        query_vec = query_vectors[i]
-        top_similarities = []
-        for j in range(len(doc_vectors)):
-            sim = np.dot(query_vec,doc_vectors[j]) / (norm(query_vec) * norm(doc_vectors[j]))
-            if len(top_similarities) < 3:
-                heapq.heappush(top_similarities, (sim, j))
-            else:
-                if sim > top_similarities[0][0]:
-                    heapq.heappop(top_similarities)  
-                    heapq.heappush(top_similarities, (sim, j))
+    # for i in range(len(query_vectors)):
+    #     query_vec = query_vectors[i]
+    #     top_similarities = []
+    #     for j in range(len(doc_vectors)):
+    #         sim = cos_sim(query_vec,doc_vectors[j])
+    #         if len(top_similarities) < 3:
+    #             heapq.heappush(top_similarities, (sim, j))
+    #         else:
+    #             if sim > top_similarities[0][0]:
+    #                 heapq.heappop(top_similarities)  
+    #                 heapq.heappush(top_similarities, (sim, j))
 
-        with open("output.txt", "a") as f:
-            print(f"Query: {querys[i]}", file=f)
-        for sim in top_similarities:
-            with open("output.txt", "a") as f:
-                print(f"{sim[0]} {documents[sim[1]]}", file=f)
-    
+    #     with open("output.txt", "a") as f:
+    #         print(f"Query: {querys[i]}", file=f)
+    #     for sim in top_similarities:
+    #         with open("output.txt", "a") as f:
+    #             print(f"{sim[0]} {documents[sim[1]]}", file=f)
 
-    
-    # print(vector)
 
 def main(): 
     # process_query()
     # process_documents()
-    word2Vec()
-    # tfidf()
+    # word2Vec()
+    tfidf()
     
 
 
